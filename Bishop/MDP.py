@@ -173,8 +173,8 @@ class MDP(object):
             State (int): State number where agent begins.
             Softmax (bool): Simulate with softmaxed policy?
             Simple (bool): Some states have various actions all with an equally high value.
-                           when this happens, Run() randomly selects one of these actions.
-                           if Simple is set to True, it selects the first highest-value action.
+                           When this happens, Run() randomly selects one of these actions.
+                           If Simple is set to True, it selects the first highest-value action.
 
         Returns:
             List of state numbers
