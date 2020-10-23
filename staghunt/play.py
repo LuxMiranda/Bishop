@@ -29,7 +29,7 @@ def getGoal(gameMap, player, actions):
     Compute the most likely goal of the given player and action sequence
     """
     # Build observer and run inference
-    Observer = LoadObserver("StagHunt_a_Player{}".format(player))
+    Observer = LoadObserver("{}_Player{}".format(gameMap,player), Silent=True)
     Results = Observer.InferAgent(
         ActionSequence=actions, Samples=5, Feedback=False)
     # Fetch object names and inferred reward matrix
@@ -70,7 +70,6 @@ def numCorrects(trueCoops, inferredCoops):
     return numCorrects
 
 def main():
-
     ###
     ### TIMESTEP 1
     ###
@@ -79,6 +78,7 @@ def main():
     ### Scenario (a)
     trueCoops = {'AC': True, 'AB': False, 'BC': False}
     gameMap = 'StagHunt_a'
+    print(gameMap)
     actions = {
         'A' : ['R'],
         'B' : ['U'],
@@ -88,8 +88,21 @@ def main():
     print(inferredCoops)
     correctPredictions += numCorrects(trueCoops, inferredCoops)
 
+    ### Scenario (b)
+    trueCoops = {'AC': False, 'AB': False, 'BC': False}
+    gameMap = 'StagHunt_b_T012'
+    print(gameMap)
+    actions = {
+        'A' : ['U'],
+        'B' : ['R'],
+        'C' : ['D'],
+    }
+    inferredCoops = inferCooperators(gameMap, actions)
+    print(inferredCoops)
+    correctPredictions += numCorrects(trueCoops, inferredCoops)
+
     ### Tally up
-    totalPredictions = 3.0
+    totalPredictions = 6.0
     accuracy = correctPredictions/totalPredictions
     print(accuracy)
 

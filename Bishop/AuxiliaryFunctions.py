@@ -252,7 +252,6 @@ def LoadObserver(MapConfig, Revise=False, Silent=False):
         ## Load .ini map first ##
         #########################
         else:
-            print("Map not in library. Checking local directory...")
             FilePath = MapConfig + ".ini"
             Local = True
             if not os.path.isfile(FilePath):
