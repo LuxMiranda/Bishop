@@ -13,11 +13,11 @@ def mostLikelyGoalObject(rewardMatrix):
     for i in range(4):
         if allLikely(rewardMatrix[i]):
             goals.append(i)
-    # In theory, only one object should satisfy the criterion. But double check
-    # to be safe.
+    # If more than one object satisfy the criterion, there is an indeterminate
+    # priority between then.
     if len(goals) > 1:
-        raise SystemExit('Multiple objects satisfy probable goal criterion.')
-    # If no object satisfied the criterion, list is empty. Return sentinel value.
+        return -1
+    # Likewise if no objects satisfy it.
     if len(goals) == 0:
         return -1
     # Else, return the one object
@@ -31,7 +31,7 @@ def getGoal(gameMap, player, actions):
     # Build observer and run inference
     Observer = LoadObserver("{}_Player{}".format(gameMap,player), Silent=True)
     Results = Observer.InferAgent(
-        ActionSequence=actions, Samples=5, Feedback=False)
+        ActionSequence=actions, Samples=50, Feedback=False)
     # Fetch object names and inferred reward matrix
     objects = Results.ObjectNames
     rewardMatrix = Results.CompareRewards()
@@ -41,6 +41,9 @@ def getGoal(gameMap, player, actions):
     goal = objects[likelyGoal] if likelyGoal != -1 else 'Indeterminate'
     return goal
 
+def cooperating(goal1, goal2):
+    return (goal1 == goal2) and (goal1 != 'Indeterminate')# and (goal1[:-1] == 'Stag')
+
 def inferCooperators(gameMap, actions):
     """
     Given a game map and action set for each player, infer who is cooperating.
@@ -49,9 +52,9 @@ def inferCooperators(gameMap, actions):
     goalB = getGoal(gameMap, 'B', actions['B'])
     goalC = getGoal(gameMap, 'C', actions['C'])
     cooperators = {
-        'AB' : (goalA == goalB and goalA != 'Indeterminate'),
-        'AC' : (goalA == goalC and goalB != 'Indeterminate'),
-        'BC' : (goalB == goalC and goalB != 'Indeterminate')
+        'AB' : cooperating(goalA, goalB),
+        'AC' : cooperating(goalA, goalC),
+        'BC' : cooperating(goalB, goalC)
     }
     return cooperators
 
@@ -114,8 +117,86 @@ def main():
     print(inferredCoops)
     correctPredictions += numCorrects(trueCoops, inferredCoops)
 
+    ### Scenario (d)
+    trueCoops = {'AC': False, 'AB': True, 'BC': False}
+    gameMap = 'StagHunt_d'
+    print(gameMap)
+    actions = {
+        'A' : ['U'],
+        'B' : ['U'],
+        'C' : ['U'],
+    }
+    inferredCoops = inferCooperators(gameMap, actions)
+    print(inferredCoops)
+    correctPredictions += numCorrects(trueCoops, inferredCoops)
+
+    ### Scenario (e)
+    trueCoops = {'AC': False, 'AB': False, 'BC': False}
+    gameMap = 'StagHunt_e'
+    print(gameMap)
+    actions = {
+        'A' : ['L'],
+        'B' : ['D'],
+        'C' : ['R'],
+    }
+    inferredCoops = inferCooperators(gameMap, actions)
+    print(inferredCoops)
+    correctPredictions += numCorrects(trueCoops, inferredCoops)
+
+    ### Scenario (f)
+    trueCoops = {'AC': False, 'AB': False, 'BC': False}
+    gameMap = 'StagHunt_f'
+    print(gameMap)
+    actions = {
+        'A' : ['R'],
+        'B' : ['D'],
+        'C' : [],
+    }
+    inferredCoops = inferCooperators(gameMap, actions)
+    print(inferredCoops)
+    correctPredictions += numCorrects(trueCoops, inferredCoops)
+
+    ### Scenario (g)
+    trueCoops = {'AC': True, 'AB': True, 'BC': True}
+    gameMap = 'StagHunt_g_T01'
+    print(gameMap)
+    actions = {
+        'A' : ['R'],
+        'B' : ['R'],
+        'C' : ['R'],
+    }
+    inferredCoops = inferCooperators(gameMap, actions)
+    print(inferredCoops)
+    correctPredictions += numCorrects(trueCoops, inferredCoops)
+
+    ### Scenario (h)
+    trueCoops = {'AC': False, 'AB': False, 'BC': False}
+    gameMap = 'StagHunt_h_T01'
+    print(gameMap)
+    actions = {
+        'A' : ['U'],
+        'B' : ['U'],
+        'C' : ['R'],
+    }
+    inferredCoops = inferCooperators(gameMap, actions)
+    print(inferredCoops)
+    correctPredictions += numCorrects(trueCoops, inferredCoops)
+
+    ### Scenario (i)
+    trueCoops = {'AC': True, 'AB': True, 'BC': True}
+    gameMap = 'StagHunt_i_T01'
+    print(gameMap)
+    actions = {
+        'A' : ['L'],
+        'B' : ['L'],
+        'C' : ['D'],
+    }
+    inferredCoops = inferCooperators(gameMap, actions)
+    print(inferredCoops)
+    correctPredictions += numCorrects(trueCoops, inferredCoops)
+
     ### Tally up
-    totalPredictions = 3.0 * 3
+    totalPredictions = 3.0 * 9
     accuracy = correctPredictions/totalPredictions
     print(accuracy)
 
