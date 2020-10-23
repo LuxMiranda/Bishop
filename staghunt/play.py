@@ -101,8 +101,21 @@ def main():
     print(inferredCoops)
     correctPredictions += numCorrects(trueCoops, inferredCoops)
 
+    ### Scenario (c)
+    trueCoops = {'AC': False, 'AB': False, 'BC': True}
+    gameMap = 'StagHunt_c_T01'
+    print(gameMap)
+    actions = {
+        'A' : ['L'],
+        'B' : ['R'],
+        'C' : ['D'],
+    }
+    inferredCoops = inferCooperators(gameMap, actions)
+    print(inferredCoops)
+    correctPredictions += numCorrects(trueCoops, inferredCoops)
+
     ### Tally up
-    totalPredictions = 6.0
+    totalPredictions = 3.0 * 3
     accuracy = correctPredictions/totalPredictions
     print(accuracy)
 
