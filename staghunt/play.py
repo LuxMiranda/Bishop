@@ -21,12 +21,12 @@ setup_logger('timestep2','log/timestep2-{}.log'.format(START_TIME))
 setup_logger('timestep3','log/timestep3-{}.log'.format(START_TIME)) 
 
 # More samples = more better = more longer
-SAMPLES_PER_INFERENCE = 15
+SAMPLES_PER_INFERENCE = 500
 
 # Experiment isn't deterministic (Bishop relies on a few random numbers), so
 # this controls the number of times to repeat the full experiment to acquire an
 # average accuracy across all runs.
-TIMESTEP_REPEATS = 2
+TIMESTEP_REPEATS = 50
 
 def mostLikelyGoalObject(rewardMatrix):
     """
@@ -330,7 +330,7 @@ def timestep3(i):
 
 def runExperiment(timestep):
     # Note to user: Adjust thread count proportionally to hardware chonkiness
-    numThreads = 2
+    numThreads = 14
     pool = Pool(numThreads)
 
     log = logging.getLogger(timestep.__name__)
