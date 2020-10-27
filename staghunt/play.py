@@ -59,9 +59,7 @@ def mostLikelyGoalObject(rewardMatrix):
 def predictNextAction(observer, results):
     # Fetch the likelihoods for each action
     # [L, R, U, D]
-    print('Predicting action...')
     likelihoods = observer.PredictAction(results)[1]
-    print(likelihoods)
     # Find the maximum likelihood
     maxProb = np.max(likelihoods)
     # If two or more likelihood are equal to the max
@@ -88,10 +86,6 @@ def predictActions(gameMap, player, actions, timestep, observer, results, trueAc
         predActions += nextAction[0] if nextAction != [] else 'N'
     # Log action predictions
     log = logging.getLogger('actionpred_{}'.format(timestep))
-    print('{},{},{},{},{},{}'.format(
-        gameMap, player, timestep, goal, predActions, ''.join(trueActions[player])
-    ))
-  
     # gameMap, player, reference_timestep, goal, pred_actions, true_actions
     log.info('{},{},{},{},{},{}'.format(
         gameMap, player, timestep, goal, predActions, ''.join(trueActions[player])
@@ -445,7 +439,3 @@ def main():
 if __name__ == '__main__':
     main()
 
-#print("PREDICTING NEXT ACTION(S)")
-#Probs = Observer.PredictAction(Results)
-#for plan,prob in list(zip(Probs[0],Probs[1])):
-#   print(plan,prob)
