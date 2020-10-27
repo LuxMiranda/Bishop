@@ -24,7 +24,6 @@ setup_logger('timestep2','log/timestep2-{}.log'.format(START_TIME))
 setup_logger('timestep3','log/timestep3-{}.log'.format(START_TIME)) 
 setup_logger('actionpred_timestep1','log/actionpred1-{}.csv'.format(START_TIME), format='%(message)s')
 setup_logger('actionpred_timestep2','log/actionpred2-{}.csv'.format(START_TIME), format='%(message)s')
-setup_logger('actionpred_timestep3','log/actionpred3-{}.csv'.format(START_TIME), format='%(message)s')
 
 # More samples = more better = more longer
 #SAMPLES_PER_INFERENCE = 500
@@ -121,7 +120,8 @@ def getGoal(gameMap, player, actions,timestep,trueActions):
         gameMap,player,actions,goal
     ))
     # Predict next actions
-    predictActions(gameMap, player, actions, timestep, Observer, Results,trueActions, goal)
+    if timestep != 'timestep3':
+        predictActions(gameMap, player, actions, timestep, Observer, Results,trueActions, goal)
     return goal
 
 def cooperating(goal1, goal2):
@@ -161,8 +161,11 @@ def runScenario(args):
     Use scenario parameters to make a cooperation inference. Returns the 
     number of correct predictions (min 0, max 3).
     """
+    trueActions = []
     # Unpack args
-    trueCoops, gameMap, actions, trueActions, timestep = args['trueCoops'],args['gameMap'],args['actions'],args['trueActions'],args['timestep']
+    trueCoops, gameMap, actions, timestep = args['trueCoops'],args['gameMap'],args['actions'],args['timestep']
+    if timestep != 'timestep3':
+        trueActions = args['trueActions']
     # Infer cooperators
     inferredCoops = inferCooperators(gameMap, actions, timestep, trueActions)
     # Log 
@@ -427,15 +430,13 @@ def runExperiment(timestep):
 
 def initActionPreds():
     header = 'gameMap, player, reference_timestep, goal, pred_actions, true_actions'
-    for i in range(3):
+    for i in range(2):
         log = logging.getLogger('actionpred_timestep{}'.format(i+1))
         log.info(header)
     return
 
 def main():
     initActionPreds()
-    timestep1(0)
-    timestep2(0)
     timestep3(0)
     #runExperiment(timestep1)
     #runExperiment(timestep2)
