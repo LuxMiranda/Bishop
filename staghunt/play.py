@@ -8,9 +8,12 @@ from tqdm import tqdm
 START_TIME = time.strftime('%Y%m%d-%H%M%S')
 
 # From https://stackoverflow.com/a/31695996
-def setup_logger(logger_name, log_file, level=logging.INFO):
+def setup_logger(
+        logger_name, 
+        log_file, format='[%(asctime)s - %(levelname)s] %(message)s',
+        level=logging.INFO ):
     l = logging.getLogger(logger_name)
-    formatter = logging.Formatter('[%(asctime)s - %(levelname)s] %(message)s')
+    formatter = logging.Formatter(format)
     fileHandler = logging.FileHandler(log_file, mode='w')
     fileHandler.setFormatter(formatter)
     l.setLevel(level)
@@ -19,9 +22,13 @@ def setup_logger(logger_name, log_file, level=logging.INFO):
 setup_logger('timestep1','log/timestep1-{}.log'.format(START_TIME))
 setup_logger('timestep2','log/timestep2-{}.log'.format(START_TIME))
 setup_logger('timestep3','log/timestep3-{}.log'.format(START_TIME)) 
+setup_logger('actionpred_timestep1','log/actionpred1-{}.csv'.format(START_TIME), format='%(message)s')
+setup_logger('actionpred_timestep2','log/actionpred2-{}.csv'.format(START_TIME), format='%(message)s')
+setup_logger('actionpred_timestep3','log/actionpred3-{}.csv'.format(START_TIME), format='%(message)s')
 
 # More samples = more better = more longer
-SAMPLES_PER_INFERENCE = 500
+#SAMPLES_PER_INFERENCE = 500
+SAMPLES_PER_INFERENCE = 10
 
 # Experiment isn't deterministic (Bishop relies on a few random numbers), so
 # this controls the number of times to repeat the full experiment to acquire an
@@ -50,8 +57,50 @@ def mostLikelyGoalObject(rewardMatrix):
     # Else, return the one object
     return goals[0]
 
+def predictNextAction(observer, results):
+    # Fetch the likelihoods for each action
+    # [L, R, U, D]
+    print('Predicting action...')
+    likelihoods = observer.PredictAction(results)[1]
+    print(likelihoods)
+    # Find the maximum likelihood
+    maxProb = np.max(likelihoods)
+    # If two or more likelihood are equal to the max
+    if len([p for p in likelihoods if p == maxProb]) >= 2:
+        # Indecision; return no movement
+        return []
+    # Otherwise, return the single action with the highest probability
+    return [['L'],['R'],['U'],['D']][likelihoods.index(maxProb)]
 
-def getGoal(gameMap, player, actions,timestep):
+def predictActions(gameMap, player, actions, timestep, observer, results, trueActions, goal):
+    if timestep == 'timestep3':
+        return
+    # Predict the next agent action
+    nextAction = predictNextAction(observer, results)
+    predActions = nextAction[0] if nextAction != [] else 'N'
+    # If it's timestep 1
+    if timestep == 'timestep1':
+        # Use this action prediction to predict an additional action
+        newResults = observer.InferAgent(
+                ActionSequence=actions + nextAction,
+                Samples=SAMPLES_PER_INFERENCE,
+                Feedback=False)
+        nextAction = predictNextAction(observer, newResults)
+        predActions += nextAction[0] if nextAction != [] else 'N'
+    # Log action predictions
+    log = logging.getLogger('actionpred_{}'.format(timestep))
+    print('{},{},{},{},{},{}'.format(
+        gameMap, player, timestep, goal, predActions, ''.join(trueActions[player])
+    ))
+  
+    # gameMap, player, reference_timestep, goal, pred_actions, true_actions
+    log.info('{},{},{},{},{},{}'.format(
+        gameMap, player, timestep, goal, predActions, ''.join(trueActions[player])
+    ))
+    # No return value
+    return
+
+def getGoal(gameMap, player, actions,timestep,trueActions):
     """
     Compute the most likely goal of the given player and action sequence
     """
@@ -71,18 +120,20 @@ def getGoal(gameMap, player, actions,timestep):
     log.info('getGoal(gameMap={},player={},actions={}) returned {}'.format(
         gameMap,player,actions,goal
     ))
+    # Predict next actions
+    predictActions(gameMap, player, actions, timestep, Observer, Results,trueActions, goal)
     return goal
 
 def cooperating(goal1, goal2):
     return (goal1 == goal2) and (goal1 != 'Indeterminate')# and (goal1[:-1] == 'Stag')
 
-def inferCooperators(gameMap, actions, timestep):
+def inferCooperators(gameMap, actions, timestep, trueActions):
     """
     Given a game map and action set for each player, infer who is cooperating.
     """
-    goalA = getGoal(gameMap, 'A', actions['A'], timestep)
-    goalB = getGoal(gameMap, 'B', actions['B'], timestep)
-    goalC = getGoal(gameMap, 'C', actions['C'], timestep)
+    goalA = getGoal(gameMap, 'A', actions['A'], timestep, trueActions)
+    goalB = getGoal(gameMap, 'B', actions['B'], timestep, trueActions)
+    goalC = getGoal(gameMap, 'C', actions['C'], timestep, trueActions)
     cooperators = {
         'AB' : cooperating(goalA, goalB),
         'AC' : cooperating(goalA, goalC),
@@ -111,9 +162,9 @@ def runScenario(args):
     number of correct predictions (min 0, max 3).
     """
     # Unpack args
-    trueCoops, gameMap, actions, timestep = args['trueCoops'],args['gameMap'],args['actions'],args['timestep']
+    trueCoops, gameMap, actions, trueActions, timestep = args['trueCoops'],args['gameMap'],args['actions'],args['trueActions'],args['timestep']
     # Infer cooperators
-    inferredCoops = inferCooperators(gameMap, actions, timestep)
+    inferredCoops = inferCooperators(gameMap, actions, timestep, trueActions)
     # Log 
     log = logging.getLogger(timestep)
     log.info('inferCooperators() on {} finish: trueCoops={}, inferredCoops={}'.format(
@@ -128,58 +179,67 @@ def timestep1(i):
     ###
     scenarios = [
         {### Scenario (a)
-            'trueCoops' : {'AC': True, 'AB': False, 'BC': False},
-            'timestep'  : 'timestep1',
-            'gameMap'   : 'StagHunt_a',
-            'actions'   : { 'A' : ['R'], 'B' : ['U'], 'C' : ['L'] },
+            'trueCoops'  : {'AC': True, 'AB': False, 'BC': False},
+            'timestep'   : 'timestep1',
+            'gameMap'    : 'StagHunt_a',
+            'actions'    : { 'A' : ['R'], 'B' : ['U'], 'C' : ['L'] },
+            'trueActions': { 'A' : ['R','R','D'], 'B' : ['U','U','L'], 'C' : ['L','L','U'] }
         },
         {### Scenario (b)
             'trueCoops' : {'AC': False, 'AB': False, 'BC': False},
             'timestep'  : 'timestep1',
             'gameMap'   : 'StagHunt_b_T012',
-            'actions'   : { 'A' : ['U'], 'B' : ['R'], 'C' : ['D'] }
+            'actions'   : { 'A' : ['U'], 'B' : ['R'], 'C' : ['D'] },
+            'trueActions'   : { 'A' : ['U','L','L'], 'B' : ['R','R','R'], 'C' : ['D','D','R'] }
         },
         {### Scenario (c)
             'trueCoops' : {'AC': False, 'AB': False, 'BC': True},
             'timestep'  : 'timestep1',
             'gameMap'   : 'StagHunt_c_T01',
-            'actions'   : { 'A' : ['L'], 'B' : ['R'], 'C' : ['D'] }
+            'actions'   : { 'A' : ['L'], 'B' : ['R'], 'C' : ['D'] },
+            'trueActions'   : { 'A' : ['L','D','D'], 'B' : ['R','R','R'], 'C' : ['D','D','D'] }
         },
         {### Scenario (d)
             'trueCoops' : {'AC': False, 'AB': True, 'BC': False},
             'timestep'  : 'timestep1',
             'gameMap'   : 'StagHunt_d',
-            'actions'   : { 'A' : ['U'], 'B' : ['U'], 'C' : ['U'] }
+            'actions'   : { 'A' : ['U'], 'B' : ['U'], 'C' : ['U'] },
+            'trueActions'   : { 'A' : ['U','R'], 'B' : ['U','U','R'], 'C' : ['U','U','R'] }
         },
         {### Scenario (e)
             'trueCoops' : {'AC': False, 'AB': False, 'BC': False},
             'timestep'  : 'timestep1',
             'gameMap'   : 'StagHunt_e',
-            'actions'   : { 'A' : ['L'], 'B' : ['R'], 'C' : ['D'] }
+            'actions'   : { 'A' : ['L'], 'B' : ['R'], 'C' : ['D'] },
+            'trueActions'   : { 'A' : ['L','L','L'], 'B' : ['R','U','U'], 'C' : ['D','L','L'] }
         },
         {### Scenario (f)
             'trueCoops' : {'AC': False, 'AB': False, 'BC': False},
             'timestep'  : 'timestep1',
             'gameMap'   : 'StagHunt_f',
-            'actions'   : { 'A' : ['R'], 'B' : ['D'], 'C' : [] }
+            'actions'   : { 'A' : ['R'], 'B' : ['D'], 'C' : [] },
+            'trueActions'   : { 'A' : ['R','U','U'], 'B' : ['D','D','R'], 'C' : [] }
         },
         {### Scenario (g)
             'trueCoops' : {'AC': True, 'AB': True, 'BC': True},
             'timestep'  : 'timestep1',
             'gameMap'   : 'StagHunt_g_T01',
-            'actions'   : { 'A' : ['R'], 'B' : ['R'], 'C' : ['R'] }
+            'actions'   : { 'A' : ['R'], 'B' : ['R'], 'C' : ['R'] },
+            'trueActions'   : { 'A' : ['R','R','D'], 'B' : ['R','R','R'], 'C' : ['R','R','U'] }
         },
         {### Scenario (h)
             'trueCoops' : {'AC': False, 'AB': False, 'BC': False},
             'timestep'  : 'timestep1',
             'gameMap'   : 'StagHunt_h_T01',
-            'actions'   : { 'A' : ['U'], 'B' : ['U'], 'C' : ['R'] }
+            'actions'   : { 'A' : ['U'], 'B' : ['U'], 'C' : ['R'] },
+            'trueActions'   : { 'A' : ['U','D','L'], 'B' : ['U','U','R'], 'C' : ['R','R','U'] }
         },
         {### Scenario (i)
             'trueCoops' : {'AC': True, 'AB': True, 'BC': True},
             'timestep'  : 'timestep1',
             'gameMap'   : 'StagHunt_i_T01',
-            'actions'   : { 'A' : ['L'], 'B' : ['L'], 'C' : ['D'] }
+            'actions'   : { 'A' : ['L'], 'B' : ['L'], 'C' : ['D'] },
+            'trueActions'   : { 'A' : ['L','D','D'], 'B' : ['L','D','L'], 'C' : ['D','D','R'] }
         },
     ]
     
@@ -200,55 +260,64 @@ def timestep2(i):
             'trueCoops' : {'AC': True, 'AB': False, 'BC': False},
             'timestep'  : 'timestep2',
             'gameMap'   : 'StagHunt_a',
-            'actions'   : { 'A' : ['R','R'], 'B' : ['U','U'], 'C' : ['L','L'] }
+            'actions'   : { 'A' : ['R','R'], 'B' : ['U','U'], 'C' : ['L','L'] },
+            'trueActions': { 'A' : ['R','R','D'], 'B' : ['U','U','L'], 'C' : ['L','L','U'] }
         },
         {### Scenario (b)
             'trueCoops' : {'AC': False, 'AB': False, 'BC': False},
             'timestep'  : 'timestep2',
             'gameMap'   : 'StagHunt_b_T012',
-            'actions'   : { 'A' : ['U','L'], 'B' : ['R','R'], 'C' : ['D','D'] }
+            'actions'   : { 'A' : ['U','L'], 'B' : ['R','R'], 'C' : ['D','D'] },
+            'trueActions'   : { 'A' : ['U','L','L'], 'B' : ['R','R','R'], 'C' : ['D','D','R'] }
         },
         {### Scenario (c)
             'trueCoops' : {'AC': False, 'AB': False, 'BC': True},
             'timestep'  : 'timestep2',
             'gameMap'   : 'StagHunt_c_T23',
-            'actions'   : { 'A' : ['L','D'], 'B' : ['R','R'], 'C' : ['D','D'] }
+            'actions'   : { 'A' : ['L','D'], 'B' : ['R','R'], 'C' : ['D','D'] },
+            'trueActions'   : { 'A' : ['L','D','D'], 'B' : ['R','R','R'], 'C' : ['D','D','D'] }
         },
         {### Scenario (d)
             'trueCoops' : {'AC': False, 'AB': True, 'BC': False},
             'timestep'  : 'timestep2',
             'gameMap'   : 'StagHunt_d',
-            'actions'   : { 'A' : ['U'], 'B' : ['U','U'], 'C' : ['U','U'] }
+            'actions'   : { 'A' : ['U'], 'B' : ['U','U'], 'C' : ['U','U'] },
+            'trueActions'   : { 'A' : ['U','R'], 'B' : ['U','U','R'], 'C' : ['U','U','R'] }
         },
         {### Scenario (e)
             'trueCoops' : {'AC': False, 'AB': False, 'BC': False},
             'timestep'  : 'timestep2',
             'gameMap'   : 'StagHunt_e',
-            'actions'   : { 'A' : ['L','L'], 'B' : ['R','U'], 'C' : ['D','L'] }
+            'actions'   : { 'A' : ['L','L'], 'B' : ['R','U'], 'C' : ['D','L'] },
+            'trueActions'   : { 'A' : ['L','L','L'], 'B' : ['R','U','U'], 'C' : ['D','L','L'] }
         },
         {### Scenario (f)
             'trueCoops' : {'AC': False, 'AB': False, 'BC': False},
             'timestep'  : 'timestep2',
             'gameMap'   : 'StagHunt_f',
-            'actions'   : { 'A' : ['R','U'], 'B' : ['D','D'], 'C' : [] }
+            'actions'   : { 'A' : ['R','U'], 'B' : ['D','D'], 'C' : [] },
+            'trueActions'   : { 'A' : ['R','U','U'], 'B' : ['D','D','R'], 'C' : [] }
         },
         {### Scenario (g)
             'trueCoops' : {'AC': True, 'AB': True, 'BC': True},
             'timestep'  : 'timestep2',
             'gameMap'   : 'StagHunt_g_T23',
-            'actions'   : { 'A' : ['R','R'], 'B' : ['R','R'], 'C' : ['R','R'] }
+            'actions'   : { 'A' : ['R','R'], 'B' : ['R','R'], 'C' : ['R','R'] },
+            'trueActions'   : { 'A' : ['R','R','D'], 'B' : ['R','R','R'], 'C' : ['R','R','U'] }
         },
         {### Scenario (h)
             'trueCoops' : {'AC': False, 'AB': False, 'BC': False},
             'timestep'  : 'timestep2',
             'gameMap'   : 'StagHunt_h_T2',
-            'actions'   : { 'A' : ['U','D'], 'B' : ['U','U'], 'C' : ['R','R'] }
+            'actions'   : { 'A' : ['U','D'], 'B' : ['U','U'], 'C' : ['R','R'] },
+            'trueActions'   : { 'A' : ['U','D','L'], 'B' : ['U','U','R'], 'C' : ['R','R','U'] }
         },
         {### Scenario (i)
             'trueCoops' : {'AC': True, 'AB': True, 'BC': True},
             'timestep'  : 'timestep2',
             'gameMap'   : 'StagHunt_i_T23',
-            'actions'   : { 'A' : ['L','D'], 'B' : ['L','D'], 'C' : ['D','D'] }
+            'actions'   : { 'A' : ['L','D'], 'B' : ['L','D'], 'C' : ['D','D'] },
+            'trueActions'   : { 'A' : ['L','D','D'], 'B' : ['L','D','L'], 'C' : ['D','D','R'] }
         },
     ]
     
@@ -356,10 +425,21 @@ def runExperiment(timestep):
     filename = 'log/{}-{}.log'.format(timestep.__name__, START_TIME)
     print('Logged run to {}'.format(filename))
 
+def initActionPreds():
+    header = 'gameMap, player, reference_timestep, goal, pred_actions, true_actions'
+    for i in range(3):
+        log = logging.getLogger('actionpred_timestep{}'.format(i+1))
+        log.info(header)
+    return
+
 def main():
-    runExperiment(timestep1)
-    runExperiment(timestep2)
-    runExperiment(timestep3)
+    initActionPreds()
+    timestep1(0)
+    timestep2(0)
+    timestep3(0)
+    #runExperiment(timestep1)
+    #runExperiment(timestep2)
+    #runExperiment(timestep3)
 
 if __name__ == '__main__':
     main()
