@@ -26,8 +26,8 @@ setup_logger('actionpred_timestep1','log/actionpred1-{}.csv'.format(START_TIME),
 setup_logger('actionpred_timestep2','log/actionpred2-{}.csv'.format(START_TIME), format='%(message)s')
 
 # More samples = more better = more longer
-#SAMPLES_PER_INFERENCE = 500
-SAMPLES_PER_INFERENCE = 10
+SAMPLES_PER_INFERENCE = 500
+#SAMPLES_PER_INFERENCE = 10
 
 # Experiment isn't deterministic (Bishop relies on a few random numbers), so
 # this controls the number of times to repeat the full experiment to acquire an
@@ -431,9 +431,8 @@ def initActionPreds():
 
 def main():
     initActionPreds()
-    timestep3(0)
-    #runExperiment(timestep1)
-    #runExperiment(timestep2)
+    runExperiment(timestep1)
+    runExperiment(timestep2)
     #runExperiment(timestep3)
 
 if __name__ == '__main__':
