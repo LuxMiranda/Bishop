@@ -423,7 +423,7 @@ def runExperiment(timestep):
     print('Logged run to {}'.format(filename))
 
 def initActionPreds():
-    header = 'gameMap, player, reference_timestep, goal, pred_actions, true_actions'
+    header = 'gameMap,player,reference_timestep,goal,pred_actions,true_actions'
     for i in range(2):
         log = logging.getLogger('actionpred_timestep{}'.format(i+1))
         log.info(header)
@@ -431,7 +431,7 @@ def initActionPreds():
 
 def main():
     initActionPreds()
-    runExperiment(timestep1)
+#    runExperiment(timestep1)
     runExperiment(timestep2)
     #runExperiment(timestep3)
 

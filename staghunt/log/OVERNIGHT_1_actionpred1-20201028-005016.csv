@@ -1,4 +1,4 @@
-gameMap, player, reference_timestep, goal, pred_actions, true_actions
+gameMap,player,reference_timestep,goal,pred_actions,true_actions
 StagHunt_a,A,timestep1,Stag2,RR,RRD
 StagHunt_a,A,timestep1,Stag2,RR,RRD
 StagHunt_a,A,timestep1,Stag2,RR,RRD
