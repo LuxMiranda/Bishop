@@ -39,16 +39,17 @@ data = pd.DataFrame({
 
 
 plt.grid(True)
-g = sns.lineplot(x=data['Timestep'], y=data['Human'], color=color_Human,linewidth=2.5,marker='^',markersize=10,label='Human')
-g = sns.lineplot(x=data['Timestep'], y=data['Analogy'], color=color_Analogy,linewidth=2.5,marker='D', markersize=8,label='Analogy')
-g = sns.lineplot(x=data['Timestep'], y=data['Bayesian'], color=color_Bayesian,linewidth=2.5,marker='s',markersize=8,label='Bayesian')
+g = sns.lineplot(x=data['Timestep'], y=data['Bayesian'], color=color_Bayesian,linewidth=2.5,marker='s',markersize=8,label='Bayesian',linestyle='-.')
+g = sns.lineplot(x=data['Timestep'], y=data['Analogy'], color=color_Analogy,linewidth=2.5,marker='D', markersize=8,label='Analogy', linestyle='--')
+g = sns.lineplot(x=data['Timestep'], y=data['Human'], color=color_Human,linewidth=2.5,marker='^',markersize=10,label='Human', linestyle=':')
 g = sns.pointplot(x='Timestep',y='Accuracy',data=nuc, color=color_NUC, linewidth=2.5, label='NUC', dodge=True, errwidth=1, capsize=0.1)
 g.set(ylim = (0.65, 1.04))
-custom_lines = [Line2D([0],[0], color=color_Human,lw=2.5,marker='^'),
-                Line2D([0],[0], color=color_Analogy,lw=2.5,marker='D'),
-                Line2D([0],[0], color=color_Bayesian,lw=2.5,marker='s'),
+
+custom_lines = [Line2D([0],[0], color=color_Human,lw=2.5,marker='^', linestyle=':'),
+                Line2D([0],[0], color=color_Analogy,lw=2.5,marker='D',linestyle='dashed'),
+                Line2D([0],[0], color=color_Bayesian,lw=2.5,marker='s',linestyle='-.'),
                 Line2D([0],[0], color=color_NUC,lw=2.5,marker='o')]
-g.legend(custom_lines, ['Human','Analogy','Bayesian','NUC'])
+g.legend(custom_lines, ['Human','Analogy','Bayesian','NUC'], handlelength=6)
 plt.ylabel('Accuracy')
 plt.xlabel('Timestep')
 plt.show()
