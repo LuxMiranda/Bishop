@@ -53,8 +53,8 @@ def cellNumToCoords(num):
 def getPos(agent, gameMap):
     return cellNumToCoords(gameMap[agent])
 
-def getNextPos(agent, action, gameMap):
-    (row,col) = getPos(agent, gameMap)
+def getNextPos(pos, action):
+    (row,col) = pos
     if action == 'L':
         return (row, col-1)
     elif action == 'R':
@@ -73,10 +73,7 @@ def getDistance(pos1, pos2):
 #   T - Move   [T]owards
 #   A - Move   [A]way
 #   S - Remain [S]tationary
-def getRelativeAction(agent, otherAgent, action, gameMap):
-    agentCurPos   = getPos(agent, gameMap)
-    agentNextPos  = getNextPos(agent, action, gameMap)
-    otherAgentPos = getPos(otherAgent, gameMap)
+def getRelativeAction(agentCurPos, agentNextPos, otherAgentPos):
     origDistance  = getDistance(agentCurPos, otherAgentPos)
     newDistance   = getDistance(agentNextPos, otherAgentPos)
     if newDistance < origDistance:
@@ -87,10 +84,17 @@ def getRelativeAction(agent, otherAgent, action, gameMap):
         return 'A'
 
 def getRelativeActions(agent, otherAgent, actionSeq, gameMap):
-    return ''.join([getRelativeAction(agent, otherAgent, actionSeq, gameMap) for a in actionSeq])
+    relActions    = ''
+    agentCurPos   = getPos(agent, gameMap)
+    otherAgentPos = getPos(otherAgent, gameMap)
+    for action in actionSeq:
+        agentNextPos = getNextPos(agentCurPos, action)
+        relActions  += getRelativeAction(agentCurPos, agentNextPos, otherAgentPos)
+        agentCurPos  = agentNextPos
+    return relActions
 
 
-def getStates(gameMap):
+def getPlayerStates(gameMap):
     states = {}
     config = configparser.ConfigParser()
     config.read('../{}_PlayerA.ini'.format(gameMap))
@@ -101,30 +105,57 @@ def getStates(gameMap):
     states['C'] = int(config.get('MapParameters', 'StartingPoint'))
     return states
 
-def test():
-    gameMap = 'StagHunt_a'
-    states  = getStates(gameMap)
-    print(getRelativeAction('A','B','R', states))
-    return
+def getStates():
+    maps = pd.read_csv('../log/OVERNIGHT_1_actionpred1-20201028-005016.csv')['gameMap']
+    maps = (list(set(list(maps))))
+    states = {}
+    for gmap in maps:
+        states[gmap] = getPlayerStates(gmap)
+    return states
 
-def triStateAccuracy():
-    # Timestep 1 to timestep 2
-    # Get data
-    # Create new columns:
-        # true_relative_A
-        # true_relative_B
-        # true_relative_C
-        # true_relative_S1
-        # true_relative_S2
-    # Compare accuracy
+def getConvertedData():
+    states = getStates()
+    data = pd.read_csv('../log/OVERNIGHT_1_actionpred1-20201028-005016.csv')
+    data = data.fillna('NNN')
+    for i in data.index:
+        player   = data.at[i, 'player']
+        true_actions  = data.at[i, 'true_actions']
+        pred_actions  = true_actions[0] + data.at[i, 'pred_actions']
+        stateMap = states[data.at[i, 'gameMap']]
+        if player != 'A':
+            data.at[i, 'true_relative_to_A'] = getRelativeActions(player, 'A', true_actions, stateMap)
+            data.at[i, 'pred_relative_to_A'] = getRelativeActions(player, 'A', pred_actions, stateMap)
+        if player != 'B':
+            data.at[i, 'true_relative_to_B'] = getRelativeActions(player, 'B', true_actions, stateMap)
+            data.at[i, 'pred_relative_to_B'] = getRelativeActions(player, 'B', pred_actions, stateMap)
+        if player != 'C':
+            data.at[i, 'true_relative_to_C'] = getRelativeActions(player, 'C', true_actions, stateMap)
+            data.at[i, 'pred_relative_to_C'] = getRelativeActions(player, 'C', pred_actions, stateMap)
+    return data
+
+def accuracyScore(left, right):
+    return 1 if left == right else 0
+
+def calculateAccuracy():
+    data = getConvertedData()
+    numCorrect = 0
+    total = 0
+    for i in data.index:
+        if data.at[i, 'player'] != 'A':
+            numCorrect += accuracyScore(data.at[i, 'true_relative_to_A'][1], data.at[i, 'pred_relative_to_A'][1])
+        if data.at[i, 'player'] != 'B':
+            numCorrect += accuracyScore(data.at[i, 'true_relative_to_B'][1], data.at[i, 'pred_relative_to_B'][1])
+        if data.at[i, 'player'] != 'C':
+            numCorrect += accuracyScore(data.at[i, 'true_relative_to_C'][1], data.at[i, 'pred_relative_to_C'][1])
+        total += 2
+    print('Total accuracy: {}'.format(numCorrect/total))
     return
 
 def main():
     rawAccuracy1to2()
     rawAccuracy1to3()
     rawAccuracy2to3()
-    triStateAccuracy()
 
 if __name__ == '__main__':
     #main()
-    test()
+    calculateAccuracy()
