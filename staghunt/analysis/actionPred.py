@@ -105,17 +105,17 @@ def getPlayerStates(gameMap):
     states['C'] = int(config.get('MapParameters', 'StartingPoint'))
     return states
 
-def getStates():
-    maps = pd.read_csv('../log/OVERNIGHT_1_actionpred1-20201028-005016.csv')['gameMap']
+def getStates(file):
+    maps = pd.read_csv(file)['gameMap']
     maps = (list(set(list(maps))))
     states = {}
     for gmap in maps:
         states[gmap] = getPlayerStates(gmap)
     return states
 
-def getConvertedData():
-    states = getStates()
-    data = pd.read_csv('../log/OVERNIGHT_1_actionpred1-20201028-005016.csv')
+def getConvertedData(file):
+    states = getStates(file)
+    data = pd.read_csv(file)
     data = data.fillna('NNN')
     for i in data.index:
         player   = data.at[i, 'player']
@@ -136,11 +136,11 @@ def getConvertedData():
 def accuracyScore(left, right):
     return 1 if left == right else 0
 
-def relativeAccuracy(timestep):
-    t = timestep
-    if timestep == 2:
+def relativeAccuracy(fromt, tot, log):
+    t = tot
+    if tot == 2:
         t = -1
-    data = getConvertedData()
+    data = getConvertedData(log)
     numCorrect = 0
     total = 0
     for i in data.index:
@@ -151,15 +151,18 @@ def relativeAccuracy(timestep):
         if data.at[i, 'player'] != 'C':
             numCorrect += accuracyScore(data.at[i, 'true_relative_to_C'][t], data.at[i, 'pred_relative_to_C'][t])
         total += 2
-    print('Total relative accuracy, T1->T{}: {}'.format(timestep+1,numCorrect/total))
+    print('Total relative accuracy, T{}->T{}: {}'.format(fromt+1, tot+1, numCorrect/total))
     return
 
 def main():
-    #rawAccuracy1to2()
-    #rawAccuracy1to3()
-    #rawAccuracy2to3()
-    relativeAccuracy(1)
-    relativeAccuracy(2)
+    rawAccuracy1to2()
+    rawAccuracy1to3()
+    rawAccuracy2to3()
+    log = '../log/OVERNIGHT_1_actionpred1-20201028-005016.csv'
+    relativeAccuracy(0, 1, log)
+    relativeAccuracy(0, 2, log)
+    log = '../log/OVERNIGHT_2_actionpred2-20201028-233553.csv'
+    relativeAccuracy(1, 2, log)
 
 if __name__ == '__main__':
     main()

@@ -1,0 +1,6 @@
+Timestep 1 raw accuracy for timestep 2: 59.26% (Baseline: 20.00%)
+Timestep 1 raw accuracy for timestep 3: 24.67% (Baseline: 20.00%)
+Timestep 2 raw accuracy for timestep 3: 18.52% (Baseline: 20.00%)
+Total relative accuracy, T1->T2: 0.6851851851851852
+Total relative accuracy, T1->T3: 0.6077777777777778
+Total relative accuracy, T2->T3: 0.37
