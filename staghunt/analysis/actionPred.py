@@ -136,26 +136,30 @@ def getConvertedData():
 def accuracyScore(left, right):
     return 1 if left == right else 0
 
-def calculateAccuracy():
+def relativeAccuracy(timestep):
+    t = timestep
+    if timestep == 2:
+        t = -1
     data = getConvertedData()
     numCorrect = 0
     total = 0
     for i in data.index:
         if data.at[i, 'player'] != 'A':
-            numCorrect += accuracyScore(data.at[i, 'true_relative_to_A'][1], data.at[i, 'pred_relative_to_A'][1])
+            numCorrect += accuracyScore(data.at[i, 'true_relative_to_A'][t], data.at[i, 'pred_relative_to_A'][t])
         if data.at[i, 'player'] != 'B':
-            numCorrect += accuracyScore(data.at[i, 'true_relative_to_B'][1], data.at[i, 'pred_relative_to_B'][1])
+            numCorrect += accuracyScore(data.at[i, 'true_relative_to_B'][t], data.at[i, 'pred_relative_to_B'][t])
         if data.at[i, 'player'] != 'C':
-            numCorrect += accuracyScore(data.at[i, 'true_relative_to_C'][1], data.at[i, 'pred_relative_to_C'][1])
+            numCorrect += accuracyScore(data.at[i, 'true_relative_to_C'][t], data.at[i, 'pred_relative_to_C'][t])
         total += 2
-    print('Total accuracy: {}'.format(numCorrect/total))
+    print('Total relative accuracy, T1->T{}: {}'.format(timestep+1,numCorrect/total))
     return
 
 def main():
-    rawAccuracy1to2()
-    rawAccuracy1to3()
-    rawAccuracy2to3()
+    #rawAccuracy1to2()
+    #rawAccuracy1to3()
+    #rawAccuracy2to3()
+    relativeAccuracy(1)
+    relativeAccuracy(2)
 
 if __name__ == '__main__':
-    #main()
-    calculateAccuracy()
+    main()
