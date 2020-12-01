@@ -103,6 +103,7 @@ def getPlayerStates(gameMap):
     states['B'] = int(config.get('MapParameters', 'StartingPoint'))
     config.read('../{}_PlayerC.ini'.format(gameMap))
     states['C'] = int(config.get('MapParameters', 'StartingPoint'))
+    #states['Stag1']
     return states
 
 def getStates(file):

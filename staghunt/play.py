@@ -75,6 +75,11 @@ def predictActions(gameMap, player, actions, timestep, observer, results, trueAc
     # Predict the next agent action
     nextAction = predictNextAction(observer, results)
     predActions = nextAction[0] if nextAction != [] else 'N'
+    # TODO DEBUG FIXME
+    # This line is really hacky to determine the problem with the timestepping
+    if trueActions[player] != []:
+        nextAction  = [trueActions[player][1]]
+        predActions = nextAction[0] if nextAction != [] else 'N'
     # If it's timestep 1
     if timestep == 'timestep1':
         # Use this action prediction to predict an additional action
@@ -431,8 +436,8 @@ def initActionPreds():
 
 def main():
     initActionPreds()
-#    runExperiment(timestep1)
-    runExperiment(timestep2)
+    runExperiment(timestep1)
+    #runExperiment(timestep2)
     #runExperiment(timestep3)
 
 if __name__ == '__main__':
